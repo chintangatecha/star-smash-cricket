@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Star Smash Cricket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: one phone-width column. Pay card first, then balances, then games. Rohit mode adds an approvals + record-game block on top. */
+  :root{
+    --bg:#f2f5f0; --surface:#ffffff; --sunk:#e8eee6; --line:#d3ddd0; --fg:#13241a; --muted:#5d7062;
+    --accent:#1f6b3a; --accent-fg:#ffffff; --owe:#b3261e; --owe-bg:#fbe9e7; --credit:#1f6b3a; --credit-bg:#e3f1e6;
+    --wait:#8a5a00; --wait-bg:#fdf1d8;
+    --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+    --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1b13; --surface:#15281c; --sunk:#10211a; --line:#274231; --fg:#edf3eb; --muted:#8ea392;
+      --accent:#b7ec48; --accent-fg:#0e1b13; --owe:#ff8a7d; --owe-bg:#3a1d1a; --credit:#b7ec48; --credit-bg:#20361f;
+      --wait:#f3c562; --wait-bg:#3a2f14; color-scheme:dark;
+    }
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--fg); font-family:var(--body); font-size:15px; line-height:1.4;
+    padding-left:max(16px, env(safe-area-inset-left, 0px));
+    padding-right:max(16px, env(safe-area-inset-right, 0px));
+    padding-block:calc(18px + env(safe-area-inset-top, 0px)) calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+  main{max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:16px}
+  h1{font-family:var(--display); font-weight:700; font-size:32px; line-height:1; margin:0}
+  h2{font-family:var(--display); font-weight:700; font-size:21px; margin:0; letter-spacing:.01em}
+  .sub{color:var(--muted); font-size:13px; margin:4px 0 0}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:12px}
+  .card.admin{border-color:var(--accent); border-width:2px}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .spread{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+  .label{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .num{font-variant-numeric:tabular-nums}
+  input,select,textarea{
+    font:inherit; font-size:16px; color:var(--fg); background:var(--surface);
+    border:1px solid var(--line); border-radius:10px; padding:10px 12px; min-width:0;
+  }
+  select{appearance:auto}
+  .grow{flex:1}
+  button{font:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
+  .btn{font-weight:600; border-radius:10px; padding:10px 14px; border:1px solid var(--line); background:var(--surface); color:var(--fg)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  .btn.big{width:100%; padding:14px; font-size:16px}
+  .btn.ghost{background:none; border-color:transparent; color:var(--muted); padding:6px 8px; text-decoration:underline}
+  .btn.danger{color:var(--owe)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .pill{display:inline-block; border-radius:999px; padding:2px 10px; font-weight:700; font-size:14px; white-space:nowrap; font-variant-numeric:tabular-nums}
+  .pill.owe{background:var(--owe-bg); color:var(--owe)}
+  .pill.credit{background:var(--credit-bg); color:var(--credit)}
+  .pill.zero{background:var(--sunk); color:var(--muted)}
+  .pill.wait{background:var(--wait-bg); color:var(--wait); font-size:12px; font-weight:600}
+
+  .payid{background:var(--sunk); border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .payid b{font-size:18px; font-variant-numeric:tabular-nums; user-select:all; -webkit-user-select:all}
+
+  .status{border-radius:10px; padding:12px; background:var(--sunk); display:flex; flex-direction:column; gap:2px}
+  .status .big{font-family:var(--display); font-weight:700; font-size:30px; line-height:1.05}
+  .status.owe .big{color:var(--owe)} .status.credit .big{color:var(--credit)}
+
+  .amounts{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px}
+  .amt{border:1px solid var(--line); background:var(--surface); color:var(--fg); border-radius:10px; padding:10px 4px; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:0}
+  .amt small{font-weight:500; font-size:11px; color:var(--muted)}
+  .amt.on{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+
+  .list{display:flex; flex-direction:column}
+  .item{border-top:1px solid var(--line)}
+  .item:first-child{border-top:none}
+  .item > button.head{width:100%; background:none; border:none; color:var(--fg); padding:11px 2px; display:flex; align-items:center; gap:10px; text-align:left}
+  .item .name{font-weight:600; flex:1; min-width:0}
+  .item .meta{font-size:12px; color:var(--muted); font-weight:400}
+  .detail{padding:0 2px 12px; display:flex; flex-direction:column; gap:6px; font-size:14px}
+  .line{display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .line .what{min-width:0}
+  .acts{display:flex; gap:4px; flex-wrap:wrap}
+
+  .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px}
+  .chip{border:1px solid var(--line); background:var(--surface); color:var(--fg); border-radius:10px; padding:10px 4px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+
+  pre.msg{margin:0; white-space:pre-wrap; word-break:break-word; font-family:var(--body); font-size:14px; background:var(--sunk); border-radius:10px; padding:12px; user-select:text; -webkit-user-select:text}
+  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--fg); color:var(--bg); padding:10px 16px; border-radius:999px; font-weight:600; font-size:14px; max-width:calc(100% - 32px); text-align:center; z-index:20}
+  .err{color:var(--owe); font-size:14px}
+  .badge{background:var(--owe); color:#fff; border-radius:999px; padding:1px 8px; font-size:13px; font-weight:700; margin-left:6px; vertical-align:middle}
+  details > summary{cursor:pointer; list-style:none}
+  details > summary::-webkit-details-marker{display:none}
+  details > summary h2::after{content:" +"; color:var(--muted)}
+  details[open] > summary h2::after{content:" –"}
+  @media (prefers-reduced-motion: no-preference){ .btn,.chip,.amt{transition:background .12s, border-color .12s} }
+</style>
+</head>
+<body>
+<main>
+  <header class="spread">
+    <div>
+      <h1>Star Smash Cricket</h1>
+      <p class="sub">Thursdays 9pm · Marsden Park · $150 a game, split by who played</p>
+    </div>
+  </header>
+
+  <div id="loading" class="card"><span class="muted">Loading balances…</span></div>
+  <div id="loadError" class="card" hidden><span class="err">Couldn't reach the database. Check your connection and pull to refresh.</span></div>
+
+  <!-- ROHIT MODE -->
+  <section id="adminArea" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="card admin">
+      <div class="spread">
+        <h2>Waiting for you <span id="pendingBadge" class="badge" hidden></span></h2>
+        <button class="btn ghost small" id="leaveAdmin" type="button">Leave Rohit mode</button>
+      </div>
+      <div id="pendingList" class="list"></div>
+    </div>
+
+    <div class="card admin">
+      <div class="spread"><h2 id="gameTitle">Record a game</h2><button class="btn ghost small" id="cancelEdit" type="button" hidden>Cancel edit</button></div>
+      <div class="row">
+        <input type="date" id="gDate" class="grow" aria-label="Game date">
+        <label class="row small muted" for="gCost">Court $<input type="number" id="gCost" value="150" min="0" step="1" inputmode="decimal" style="width:84px"></label>
+      </div>
+      <div class="spread"><span class="label">Who played</span><span class="small muted num" id="gCount">0 picked</span></div>
+      <div class="grid3" id="gPlayers"></div>
+      <button class="btn primary big" id="saveGame" type="button" disabled>Save game</button>
+      <div id="gameMsgWrap" hidden style="display:flex;flex-direction:column;gap:8px">
+        <span class="label">Message for the WhatsApp group</span>
+        <pre class="msg" id="gameMsg"></pre>
+        <button class="btn primary big" id="copyGameMsg" type="button">Copy message</button>
+      </div>
+    </div>
+
+    <details class="card admin" id="moreAdmin">
+      <summary><h2>Add a payment or player</h2></summary>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="label">Record a payment you received</span>
+          <div class="row">
+            <select id="aPayPlayer" class="grow" aria-label="Player"></select>
+            <input id="aPayAmt" type="number" min="1" step="0.01" inputmode="decimal" placeholder="$" style="width:96px" aria-label="Amount">
+          </div>
+          <div class="row">
+            <input id="aPayNote" class="grow" placeholder="Note (optional), e.g. cash" maxlength="120" aria-label="Note">
+            <button class="btn primary" id="aPayAdd" type="button">Add</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="label">Add a player</span>
+          <div class="row">
+            <input id="aNewPlayer" class="grow" placeholder="First name" maxlength="40" aria-label="New player name">
+            <button class="btn primary" id="aAddPlayer" type="button">Add</button>
+          </div>
+          <p class="small muted" style="margin:0">To remove someone, tap their name under Balances, then Remove player. Removed players with past games stay listed as "removed" at the bottom so you can bring them back.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- PLAYER: PAY -->
+  <section class="card" id="payCard" hidden>
+    <h2>Pay Rohit</h2>
+    <div class="payid">
+      <div><div class="label">PayID</div><b id="payidText">+61 416 955 549</b></div>
+      <button class="btn" id="copyPayid" type="button">Copy</button>
+    </div>
+    <select id="me" aria-label="Your name"><option value="">Pick your name</option></select>
+    <button class="btn ghost small" id="showAddMe" type="button" style="align-self:flex-start;padding-left:0">Not on the list? Add your name</button>
+    <div class="row" id="addMeRow" hidden>
+      <input id="newMe" class="grow" placeholder="Your first name" maxlength="30" autocomplete="given-name" aria-label="Your first name">
+      <button class="btn primary" id="addMe" type="button">Add me</button>
+    </div>
+    <div id="meStatus" hidden></div>
+    <div id="payForm" hidden style="display:flex;flex-direction:column;gap:10px">
+      <span class="label">After paying, tell Rohit how much</span>
+      <div class="amounts" id="amounts"></div>
+      <input id="customAmt" type="number" min="1" step="0.01" inputmode="decimal" placeholder="Other amount" aria-label="Other amount">
+      <input id="payNote" placeholder="Note for Rohit (optional)" maxlength="120" aria-label="Note for Rohit">
+      <button class="btn primary big" id="submitPay" type="button" disabled>I've paid</button>
+      <p class="small muted" style="margin:0">Rohit checks his bank and approves it. Your balance updates then.</p>
+    </div>
+  </section>
+
+  <!-- BALANCES -->
+  <section class="card" id="balCard" hidden>
+    <div class="spread"><h2>Balances</h2><span class="small muted">Tap a name for details</span></div>
+    <div class="list" id="balList"></div>
+  </section>
+
+  <!-- GAMES -->
+  <section class="card" id="gamesCard" hidden>
+    <h2>Games</h2>
+    <div class="list" id="gameList"></div>
+  </section>
+
+  <p class="small muted" style="text-align:center;margin:0">Minus means you owe. Plus means you have credit for future games.</p>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const SUPA_URL = "https://yqkmmspnjewpfupwnpru.supabase.co";
+const SUPA_KEY = "sb_publishable_mZr3Y694oOjpT-eiGkrnRg_RwJD98R4";
+const PAYID = "+61 416 955 549";
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch(e){} }
+};
+
+/* ---------- API ---------- */
+async function api(path, opts = {}){
+  const res = await fetch(SUPA_URL + "/rest/v1/" + path, {
+    ...opts,
+    headers: { apikey: SUPA_KEY, "Content-Type": "application/json", ...(opts.headers || {}) }
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error((data && data.message) || "Something went wrong. Try again.");
+  return data;
+}
+const rpc = (fn, args) => api("rpc/" + fn, { method: "POST", body: JSON.stringify(args) });
+
+/* ---------- State ---------- */
+let S = { players: [], sessions: [], attendance: [], payments: [] };
+let adminKey = null;
+let openItems = new Set();
+let pickedAmount = null;
+let gamePicked = new Set();
+let editingSession = null;
+
+/* ---------- Helpers ---------- */
+const r2 = n => Math.round(n * 100) / 100;
+function money(n){
+  n = r2(n);
+  const s = "$" + Math.abs(n).toFixed(2).replace(/\.00$/, "");
+  return n < 0 ? "−" + s : s;
+}
+function signed(n){ n = r2(n); return n > 0 ? "+" + money(n) : money(n); }
+function fmtDate(iso, long){
+  const [y,m,d] = iso.slice(0,10).split("-").map(Number);
+  return new Date(y, m-1, d).toLocaleDateString("en-AU", long ? {weekday:"short", day:"numeric", month:"short", year:"numeric"} : {weekday:"short", day:"numeric", month:"short"});
+}
+function fmtWhen(ts){
+  return new Date(ts).toLocaleDateString("en-AU", {day:"numeric", month:"short"});
+}
+function lastThursday(){
+  const d = new Date();
+  d.setDate(d.getDate() - ((d.getDay() - 4 + 7) % 7));
+  const p = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function el(tag, attrs = {}, ...kids){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)){
+    if (k === "class") e.className = v;
+    else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+let toastTimer;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2600);
+}
+async function copyText(text, okMsg){
+  try { await navigator.clipboard.writeText(text); toast(okMsg || "Copied"); }
+  catch(e){
+    const ta = el("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.append(ta); ta.select();
+    try { document.execCommand("copy"); toast(okMsg || "Copied"); } catch(_) { toast("Select the text and copy it"); }
+    ta.remove();
+  }
+}
+function pillFor(bal){
+  const b = r2(bal);
+  if (b < 0) return el("span", {class:"pill owe", text: money(b)});
+  if (b > 0) return el("span", {class:"pill credit", text: "+" + money(b)});
+  return el("span", {class:"pill zero", text:"$0"});
+}
+
+/* ---------- Derived data ---------- */
+function compute(){
+  const byPlayer = new Map(S.players.map(p => [p.id, { ...p, paid:0, charged:0, pending:0, games:0 }]));
+  for (const a of S.attendance){ const p = byPlayer.get(a.player_id); if (p){ p.charged += +a.share; p.games++; } }
+  for (const x of S.payments){
+    const p = byPlayer.get(x.player_id); if (!p) continue;
+    if (x.status === "approved") p.paid += +x.amount;
+    else if (x.status === "pending") p.pending += +x.amount;
+  }
+  for (const p of byPlayer.values()) p.balance = r2(p.paid - p.charged);
+  return byPlayer;
+}
+function sessionPlayers(sid){
+  const ids = S.attendance.filter(a => a.session_id === sid).map(a => a.player_id);
+  const names = new Map(S.players.map(p => [p.id, p.name]));
+  return ids.map(id => ({ id, name: names.get(id) || "?" })).sort((a,b) => a.name.localeCompare(b.name));
+}
+
+/* ---------- Load ---------- */
+async function load(){
+  try {
+    const [players, sessions, attendance, payments] = await Promise.all([
+      api("players?select=id,name,active&order=name"),
+      api("sessions?select=id,played_on,cost,note&order=played_on.desc,id.desc"),
+      api("attendance?select=session_id,player_id,share"),
+      api("payments?select=id,player_id,amount,note,status,source,created_at,decided_at&order=created_at.desc")
+    ]);
+    S = { players, sessions, attendance, payments };
+    $("loading").hidden = true; $("loadError").hidden = true;
+    render();
+  } catch(e){
+    $("loading").hidden = true; $("loadError").hidden = false;
+  }
+}
+
+/* ---------- Render ---------- */
+function render(){
+  const B = compute();
+  renderPay(B);
+  renderBalances(B);
+  renderGames();
+  if (adminKey) renderAdmin(B);
+}
+
+function renderPay(B){
+  $("payCard").hidden = false;
+  const sel = $("me");
+  const chosen = sel.value || store.get("ss-me") || "";
+  sel.replaceChildren(el("option", {value:"", text:"Pick your name"}),
+    ...S.players.filter(p => p.active).map(p => el("option", {value: String(p.id), text: p.name})));
+  sel.value = B.has(+chosen) && B.get(+chosen).active ? chosen : "";
+  const me = sel.value ? B.get(+sel.value) : null;
+
+  const st = $("meStatus");
+  if (!me){ st.hidden = true; $("payForm").hidden = true; return; }
+  st.hidden = false; $("payForm").hidden = false;
+  const owe = me.balance < 0;
+  st.className = "status " + (owe ? "owe" : me.balance > 0 ? "credit" : "");
+  st.replaceChildren(
+    el("span", {class:"label", text: owe ? "You owe" : me.balance > 0 ? "Your credit" : "All square"}),
+    el("span", {class:"big num", text: money(Math.abs(me.balance))}),
+    el("span", {class:"small muted", text: `${me.games} game${me.games === 1 ? "" : "s"} · paid ${money(me.paid)} so far`}),
+    me.pending > 0 ? el("span", {class:"small", style:"color:var(--wait)", text: `${money(me.pending)} waiting for Rohit to approve`}) : null
+  );
+
+  // Amount choices: what you owe (if any), then round advances
+  const owed = r2(Math.max(0, -me.balance - me.pending));
+  const choices = [];
+  if (owed > 0) choices.push({ v: owed, label: money(owed), hint: "what you owe" });
+  for (const v of [50, 100, 150]) if (v !== owed) choices.push({ v, label: money(v), hint: owed > 0 && v > owed ? "covers it + credit" : "in advance" });
+  const shown = choices.slice(0, 3);
+  if (pickedAmount == null && owed > 0) pickedAmount = owed;
+  $("amounts").replaceChildren(...shown.map(c => el("button", {
+    type:"button", class:"amt" + (pickedAmount === c.v && !$("customAmt").value ? " on" : ""),
+    onclick(){ pickedAmount = c.v; $("customAmt").value = ""; renderPay(compute()); }
+  }, el("span", {class:"num", text:c.label}), el("small", {text:c.hint}))));
+  updateSubmit();
+}
+function currentAmount(){
+  const c = parseFloat($("customAmt").value);
+  return c > 0 ? r2(c) : pickedAmount;
+}
+function updateSubmit(){
+  const a = currentAmount();
+  const b = $("submitPay");
+  b.disabled = !(a > 0) || !$("me").value;
+  b.textContent = a > 0 ? `I've paid ${money(a)}` : "I've paid";
+}
+
+function renderBalances(B){
+  $("balCard").hidden = false;
+  const rows = [...B.values()].filter(p => p.active || adminKey)
+    .sort((a,b) => (a.active === b.active ? 0 : a.active ? -1 : 1) || a.balance - b.balance || a.name.localeCompare(b.name));
+  $("balList").replaceChildren(...rows.map(p => {
+    const key = "p" + p.id;
+    const open = openItems.has(key);
+    const head = el("button", {type:"button", class:"head", "aria-expanded": String(open), onclick(){ toggle(key); }},
+      el("span", {class:"name"}, p.name + (p.active ? "" : " (removed)"), el("div", {class:"meta", text: `${p.games} game${p.games === 1 ? "" : "s"}`})),
+      p.pending > 0 ? el("span", {class:"pill wait", text: money(p.pending) + " waiting"}) : null,
+      pillFor(p.balance)
+    );
+    return el("div", {class:"item"}, head, open ? playerDetail(p) : null);
+  }));
+}
+function playerDetail(p){
+  const lines = [];
+  const pays = S.payments.filter(x => x.player_id === p.id);
+  const games = S.attendance.filter(a => a.player_id === p.id)
+    .map(a => ({ a, s: S.sessions.find(s => s.id === a.session_id) })).filter(g => g.s);
+  const events = [
+    ...pays.map(x => ({ t: x.created_at, kind:"pay", x })),
+    ...games.map(g => ({ t: g.s.played_on + "T21:00:00", kind:"game", g }))
+  ].sort((a,b) => b.t.localeCompare(a.t));
+  if (!events.length) lines.push(el("div", {class:"muted small", text:"Nothing yet."}));
+  for (const e of events.slice(0, 30)){
+    if (e.kind === "game"){
+      lines.push(el("div", {class:"line"},
+        el("span", {class:"what", text: `Played ${fmtDate(e.g.s.played_on)}`}),
+        el("span", {class:"num", text: "−" + money(e.g.a.share)})));
+    } else {
+      const x = e.x;
+      const label = x.status === "approved" ? "Paid" : x.status === "pending" ? "Paid (waiting)" : "Rejected";
+      const acts = adminKey ? el("span", {class:"acts"},
+        x.status !== "approved" ? el("button", {type:"button", class:"btn ghost small", text:"Approve", onclick:() => setStatus(x.id, "approved")}) : null,
+        x.status === "approved" ? el("button", {type:"button", class:"btn ghost small", text:"Unapprove", onclick:() => setStatus(x.id, "pending")}) : null,
+        el("button", {type:"button", class:"btn ghost small danger", text:"Delete", onclick(){ confirmThen(this, "Delete this payment?", () => adminCall("admin_delete_payment", {p_payment:x.id}, "Payment deleted")); }})
+      ) : null;
+      lines.push(el("div", {class:"line"},
+        el("span", {class:"what"}, `${label} ${fmtWhen(x.created_at)}`, x.note ? el("span", {class:"muted small", text: " · " + x.note}) : null),
+        el("span", {class:"row", style:"gap:6px;flex-wrap:nowrap"},
+          el("span", {class:"num", style: x.status === "rejected" ? "text-decoration:line-through;color:var(--muted)" : x.status === "pending" ? "color:var(--wait)" : "", text: "+" + money(x.amount)}))
+      ));
+      if (acts) lines.push(acts);
+    }
+  }
+  if (adminKey){
+    const hasHistory = p.games > 0 || pays.length > 0;
+    lines.push(el("div", {class:"acts"},
+      p.active
+        ? el("button", {type:"button", class:"btn small danger", text:"Remove player", onclick(){
+            confirmThen(this, "", async () => {
+              const r = await adminCall("admin_remove_player", {p_player:p.id});
+              toast(r === "deleted" ? `${p.name} removed` : `${p.name} removed. Their past games and payments stay on record.`);
+            });
+          }})
+        : el("button", {type:"button", class:"btn small", text:"Bring back", onclick:() => adminCall("admin_set_player_active", {p_player:p.id, p_active:true}, `${p.name} is back`)}),
+      p.active && hasHistory && Math.abs(p.balance) > 0.004
+        ? el("span", {class:"small muted", style:"align-self:center", text: p.balance < 0 ? `Still owes ${money(-p.balance)}` : `Has ${money(p.balance)} credit`})
+        : null));
+  }
+  return el("div", {class:"detail"}, ...lines);
+}
+
+function renderGames(){
+  $("gamesCard").hidden = false;
+  if (!S.sessions.length){
+    $("gameList").replaceChildren(el("p", {class:"muted small", style:"margin:0", text: adminKey ? "No games yet. Record Thursday's game above." : "No games recorded yet. Rohit adds each game after it's played."}));
+    return;
+  }
+  $("gameList").replaceChildren(...S.sessions.slice(0, 20).map(s => {
+    const key = "s" + s.id;
+    const ppl = sessionPlayers(s.id);
+    const each = ppl.length ? r2(s.cost / ppl.length) : 0;
+    const open = openItems.has(key);
+    const head = el("button", {type:"button", class:"head", "aria-expanded": String(open), onclick(){ toggle(key); }},
+      el("span", {class:"name"}, fmtDate(s.played_on), el("div", {class:"meta", text: `${ppl.length} players · ${money(s.cost)} court`})),
+      el("span", {class:"num", style:"font-weight:700", text: money(each) + " each"}));
+    const detail = open ? el("div", {class:"detail"},
+      el("div", {text: ppl.map(p => p.name).join(", ")}),
+      adminKey ? el("div", {class:"acts"},
+        el("button", {type:"button", class:"btn small", text:"Edit", onclick:() => startEdit(s)}),
+        el("button", {type:"button", class:"btn small danger", text:"Delete game", onclick(){ confirmThen(this, "Delete this game? Everyone's share comes back.", () => adminCall("admin_delete_session", {p_session:s.id}, "Game deleted")); }}),
+        el("button", {type:"button", class:"btn small", text:"Copy message", onclick:() => copyText(gameMessage(s), "Message copied")})
+      ) : null) : null;
+    return el("div", {class:"item"}, head, detail);
+  }));
+}
+function toggle(key){ openItems.has(key) ? openItems.delete(key) : openItems.add(key); render(); }
+
+/* ---------- Two-tap confirm (dialogs are unreliable on phones) ---------- */
+function confirmThen(btn, question, fn){
+  if (btn.dataset.armed){ fn(); return; }
+  const old = btn.textContent;
+  btn.dataset.armed = "1"; btn.textContent = "Tap again to confirm";
+  setTimeout(() => { if (btn.isConnected){ delete btn.dataset.armed; btn.textContent = old; } }, 3000);
+}
+
+/* ---------- Player actions ---------- */
+$("me").addEventListener("change", () => { store.set("ss-me", $("me").value || null); pickedAmount = null; $("customAmt").value = ""; render(); });
+$("showAddMe").addEventListener("click", () => { $("addMeRow").hidden = false; $("showAddMe").hidden = true; $("newMe").focus(); });
+async function addMe(){
+  const name = $("newMe").value.trim();
+  if (!name) return;
+  const b = $("addMe"); b.disabled = true;
+  try {
+    const id = await rpc("add_player", { p_name: name });
+    store.set("ss-me", String(id));
+    $("me").value = String(id);
+    $("newMe").value = ""; $("addMeRow").hidden = true; $("showAddMe").hidden = false;
+    toast("Added. You're on the list.");
+    await load();
+  } catch(e){ toast(e.message); }
+  b.disabled = false;
+}
+$("addMe").addEventListener("click", addMe);
+$("newMe").addEventListener("keydown", e => { if (e.key === "Enter") addMe(); });
+$("customAmt").addEventListener("input", () => { document.querySelectorAll(".amt").forEach(b => b.classList.remove("on")); updateSubmit(); });
+$("copyPayid").addEventListener("click", () => copyText(PAYID, "PayID copied"));
+$("submitPay").addEventListener("click", async () => {
+  const amt = currentAmount(), pid = +$("me").value;
+  if (!(amt > 0) || !pid) return;
+  const b = $("submitPay"); b.disabled = true; b.textContent = "Sending…";
+  try {
+    await rpc("submit_payment", { p_player: pid, p_amount: amt, p_note: $("payNote").value || null });
+    $("payNote").value = ""; $("customAmt").value = ""; pickedAmount = null;
+    toast(`Sent. Rohit will approve ${money(amt)}.`);
+    await load();
+  } catch(e){ toast(e.message); updateSubmit(); }
+});
+
+/* ---------- Admin ---------- */
+async function setStatus(id, status){
+  await adminCall("admin_set_payment_status", {p_payment:id, p_status:status},
+    status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Moved back to waiting");
+}
+async function adminCall(fn, args, okMsg){
+  try { const r = await rpc(fn, { p_key: adminKey, ...args }); if (okMsg) toast(okMsg); await load(); return r; }
+  catch(e){ toast(e.message); throw e; }
+}
+
+function renderAdmin(B){
+  $("adminArea").hidden = false;
+  // Pending approvals
+  const pend = S.payments.filter(x => x.status === "pending").sort((a,b) => a.created_at.localeCompare(b.created_at));
+  $("pendingBadge").hidden = !pend.length; $("pendingBadge").textContent = pend.length;
+  $("pendingList").replaceChildren(...(pend.length ? pend.map(x => {
+    const p = B.get(x.player_id);
+    return el("div", {class:"item"}, el("div", {class:"line", style:"padding:10px 2px"},
+      el("span", {class:"what"}, el("b", {text: p ? p.name : "?"}), ` says paid `, el("b", {class:"num", text: money(x.amount)}),
+        el("div", {class:"meta", text: fmtWhen(x.created_at) + (x.note ? " · " + x.note : "")})),
+      el("span", {class:"acts"},
+        el("button", {type:"button", class:"btn primary", text:"Approve", onclick:() => setStatus(x.id, "approved")}),
+        el("button", {type:"button", class:"btn", text:"Reject", onclick:() => setStatus(x.id, "rejected")}))));
+  }) : [el("p", {class:"muted small", style:"margin:0", text:"Nothing to approve. When someone taps “I've paid”, it shows up here."})]));
+
+  // Game form players
+  const active = S.players.filter(p => p.active || gamePicked.has(p.id));
+  $("gPlayers").replaceChildren(...active.map(p => el("button", {
+    type:"button", class:"chip" + (gamePicked.has(p.id) ? " on" : ""), text:p.name, "aria-pressed": String(gamePicked.has(p.id)),
+    onclick(){ gamePicked.has(p.id) ? gamePicked.delete(p.id) : gamePicked.add(p.id); renderAdmin(compute()); }
+  })));
+  const n = gamePicked.size, cost = parseFloat($("gCost").value) || 0;
+  $("gCount").textContent = n ? `${n} picked · ${money(cost / n)} each` : "0 picked";
+  $("saveGame").disabled = !n || !$("gDate").value;
+  $("saveGame").textContent = editingSession ? "Save changes" : "Save game";
+  $("gameTitle").textContent = editingSession ? "Edit game" : "Record a game";
+  $("cancelEdit").hidden = !editingSession;
+
+  // Payment form
+  const sel = $("aPayPlayer"), keep = sel.value;
+  sel.replaceChildren(el("option", {value:"", text:"Player"}), ...S.players.filter(p => p.active).map(p => el("option", {value:String(p.id), text:p.name})));
+  sel.value = keep;
+}
+
+function gameMessage(s){
+  const B = compute();
+  const ppl = sessionPlayers(s.id);
+  const each = r2(s.cost / ppl.length);
+  const owing = [...B.values()].filter(p => p.active && p.balance < 0).sort((a,b) => a.balance - b.balance);
+  const credit = [...B.values()].filter(p => p.active && p.balance > 0).sort((a,b) => b.balance - a.balance);
+  const link = location.origin + location.pathname;
+  let m = `Star Smash Cricket - ${fmtDate(s.played_on)}\n`
+        + `${ppl.length} players, $${+s.cost} / ${ppl.length} = ${money(each)} each\n`
+        + ppl.map(p => p.name).join(", ") + "\n";
+  if (owing.length) m += `\nTo pay:\n` + owing.map(p => `${p.name} ${money(-p.balance)}`).join("\n") + "\n";
+  if (credit.length) m += `\nIn credit:\n` + credit.map(p => `${p.name} +${money(p.balance)}`).join("\n") + "\n";
+  m += `\nPayID: ${PAYID}\nAfter paying, mark it here: ${link}`;
+  return m;
+}
+
+function startEdit(s){
+  editingSession = s.id;
+  gamePicked = new Set(sessionPlayers(s.id).map(p => p.id));
+  $("gDate").value = s.played_on; $("gCost").value = +s.cost;
+  $("gameMsgWrap").hidden = true;
+  render();
+  $("gameTitle").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function resetGameForm(){
+  editingSession = null; gamePicked = new Set();
+  $("gDate").value = lastThursday(); $("gCost").value = 150;
+}
+$("cancelEdit").addEventListener("click", () => { resetGameForm(); render(); });
+$("gDate").addEventListener("change", () => renderAdmin(compute()));
+$("gCost").addEventListener("input", () => renderAdmin(compute()));
+$("saveGame").addEventListener("click", async () => {
+  const b = $("saveGame"); b.disabled = true; b.textContent = "Saving…";
+  try {
+    const sid = await adminCall("admin_save_session", {
+      p_session: editingSession, p_date: $("gDate").value, p_cost: parseFloat($("gCost").value) || 150,
+      p_players: [...gamePicked], p_note: null
+    }, editingSession ? "Game updated" : "Game saved");
+    const s = S.sessions.find(x => x.id === sid);
+    resetGameForm();
+    if (s){ $("gameMsg").textContent = gameMessage(s); $("gameMsgWrap").hidden = false; }
+    render();
+  } catch(e){ render(); }
+});
+$("copyGameMsg").addEventListener("click", () => copyText($("gameMsg").textContent, "Message copied. Paste it in WhatsApp."));
+$("aPayAdd").addEventListener("click", async () => {
+  const pid = +$("aPayPlayer").value, amt = parseFloat($("aPayAmt").value);
+  if (!pid || !(amt > 0)) { toast("Pick a player and an amount"); return; }
+  try {
+    await adminCall("admin_add_payment", {p_player:pid, p_amount:amt, p_note:$("aPayNote").value || null}, `${money(amt)} added`);
+    $("aPayAmt").value = ""; $("aPayNote").value = "";
+  } catch(e){}
+});
+$("aAddPlayer").addEventListener("click", async () => {
+  const name = $("aNewPlayer").value.trim();
+  if (!name) return;
+  try { await adminCall("admin_add_player", {p_name:name}, `${name} added`); $("aNewPlayer").value = ""; } catch(e){}
+});
+$("leaveAdmin").addEventListener("click", () => {
+  store.set("ss-admin", null); adminKey = null;
+  history.replaceState(null, "", location.pathname);
+  $("adminArea").hidden = true; render();
+});
+
+/* ---------- Boot ---------- */
+async function boot(){
+  const m = location.hash.match(/key=([A-Za-z0-9]+)/);
+  const candidate = m ? m[1] : store.get("ss-admin");
+  if (candidate){
+    try {
+      if (await rpc("admin_check", { p_key: candidate })){
+        adminKey = candidate; store.set("ss-admin", candidate);
+      } else if (m){ toast("That admin link isn't valid"); store.set("ss-admin", null); }
+    } catch(e){}
+  }
+  resetGameForm();
+  await load();
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+setInterval(() => { if (!document.hidden) load(); }, 60000);
+boot();
+</script>
+</body>
+</html>
