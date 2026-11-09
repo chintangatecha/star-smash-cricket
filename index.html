@@ -302,7 +302,7 @@ function compute(){
     if (x.status === "approved") p.paid += +x.amount;
     else if (x.status === "pending") p.pending += +x.amount;
   }
-  for (const p of byPlayer.values()) p.balance = r2(p.paid - p.charged);
+  for (const p of byPlayer.values()) p.balance = p.is_organiser ? 0 : r2(p.paid - p.charged);
   return byPlayer;
 }
 function sessionPlayers(sid){
@@ -315,7 +315,7 @@ function sessionPlayers(sid){
 async function load(){
   try {
     const [players, sessions, attendance, payments] = await Promise.all([
-      api("players?select=id,name,active&order=name"),
+      api("players?select=id,name,active,is_organiser&order=name"),
       api("sessions?select=id,played_on,cost,note&order=played_on.desc,id.desc"),
       api("attendance?select=session_id,player_id,share"),
       api("payments?select=id,player_id,amount,note,status,source,created_at,decided_at&order=created_at.desc")
@@ -344,7 +344,7 @@ function renderPay(B){
   const sel = $("me");
   const chosen = sel.value || store.get("ss-me") || "";
   sel.replaceChildren(el("option", {value:"", text:"Pick your name"}),
-    ...S.players.filter(p => p.active).map(p => el("option", {value: String(p.id), text: p.name})));
+    ...S.players.filter(p => p.active && !p.is_organiser).map(p => el("option", {value: String(p.id), text: p.name})));
   sel.value = B.has(+chosen) && B.get(+chosen).active ? chosen : "";
   const me = sel.value ? B.get(+sel.value) : null;
 
@@ -394,7 +394,7 @@ function renderBalances(B){
     const head = el("button", {type:"button", class:"head", "aria-expanded": String(open), onclick(){ toggle(key); }},
       el("span", {class:"name"}, p.name + (p.active ? "" : " (removed)"), el("div", {class:"meta", text: `${p.games} game${p.games === 1 ? "" : "s"}`})),
       p.pending > 0 ? el("span", {class:"pill wait", text: money(p.pending) + " waiting"}) : null,
-      pillFor(p.balance)
+      p.is_organiser ? el("span", {class:"pill zero", text:"Organiser"}) : pillFor(p.balance)
     );
     return el("div", {class:"item"}, head, open ? playerDetail(p) : null);
   }));
@@ -555,7 +555,7 @@ function renderAdmin(B){
 
   // Payment form
   const sel = $("aPayPlayer"), keep = sel.value;
-  sel.replaceChildren(el("option", {value:"", text:"Player"}), ...S.players.filter(p => p.active).map(p => el("option", {value:String(p.id), text:p.name})));
+  sel.replaceChildren(el("option", {value:"", text:"Player"}), ...S.players.filter(p => p.active && !p.is_organiser).map(p => el("option", {value:String(p.id), text:p.name})));
   sel.value = keep;
 }
 
