@@ -102,6 +102,14 @@
   .grid3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px}
   .chip{border:1px solid var(--line); background:var(--surface); color:var(--fg); border-radius:10px; padding:10px 4px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .chip.on{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  #gPlayers{gap:12px 10px}
+  .chipwrap{position:relative; display:flex}
+  .chipwrap .chip{flex:1; min-width:0}
+  .chipwrap .chip.armed{background:var(--owe-bg); border-color:var(--owe); color:var(--owe)}
+  .chipx{position:absolute; top:-8px; right:-8px; width:26px; height:26px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:16px; line-height:1;
+    display:grid; place-items:center}
+  .chipx.armed{background:var(--owe); border-color:var(--owe); color:#fff}
 
   pre.msg{margin:0; white-space:pre-wrap; word-break:break-word; font-family:var(--body); font-size:14px; background:var(--sunk); border-radius:10px; padding:12px; user-select:text; -webkit-user-select:text}
   .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--fg); color:var(--bg); padding:10px 16px; border-radius:999px; font-weight:600; font-size:14px; max-width:calc(100% - 32px); text-align:center; z-index:20}
@@ -172,7 +180,7 @@
             <input id="aNewPlayer" class="grow" placeholder="First name" maxlength="40" aria-label="New player name">
             <button class="btn primary" id="aAddPlayer" type="button">Add</button>
           </div>
-          <p class="small muted" style="margin:0">To remove someone, tap their name under Balances, then Remove player. Removed players with past games stay listed as "removed" at the bottom so you can bring them back.</p>
+          <p class="small muted" style="margin:0">To remove someone, tap the × on their name under "Who played", then tap the ✓ to confirm. Removed players with past games stay at the bottom of Balances marked "removed", so you can bring them back.</p>
         </div>
       </div>
     </details>
@@ -269,6 +277,7 @@ let pickedAmount = null;
 let meId = +(store.get("ss-me") || 0) || null;
 let gamePicked = new Set();
 let editingSession = null;
+let armedRemove = null, armedTimer = null;
 
 /* ---------- Helpers ---------- */
 const r2 = n => Math.round(n * 100) / 100;
@@ -580,10 +589,36 @@ function renderAdmin(B){
 
   // Game form players
   const active = S.players.filter(p => p.active || gamePicked.has(p.id));
-  $("gPlayers").replaceChildren(...active.map(p => el("button", {
-    type:"button", class:"chip" + (gamePicked.has(p.id) ? " on" : ""), text:p.name, "aria-pressed": String(gamePicked.has(p.id)),
-    onclick(){ gamePicked.has(p.id) ? gamePicked.delete(p.id) : gamePicked.add(p.id); renderAdmin(compute()); }
-  })));
+  $("gPlayers").replaceChildren(...active.map(p => {
+    const armed = armedRemove === p.id;
+    const chip = el("button", {
+      type:"button", class:"chip" + (armed ? " armed" : gamePicked.has(p.id) ? " on" : ""),
+      text: armed ? "Remove?" : p.name, "aria-pressed": String(gamePicked.has(p.id)),
+      onclick(){
+        if (armed){ armedRemove = null; renderAdmin(compute()); return; }   // tapping the name cancels
+        gamePicked.has(p.id) ? gamePicked.delete(p.id) : gamePicked.add(p.id); renderAdmin(compute());
+      }
+    });
+    if (p.is_organiser) return el("div", {class:"chipwrap"}, chip);
+    const x = el("button", {
+      type:"button", class:"chipx" + (armed ? " armed" : ""), "aria-label": armed ? "Confirm remove " + p.name : "Remove " + p.name,
+      text: armed ? "✓" : "×",
+      async onclick(){
+        clearTimeout(armedTimer);
+        if (!armed){
+          armedRemove = p.id; renderAdmin(compute());
+          armedTimer = setTimeout(() => { if (armedRemove === p.id){ armedRemove = null; renderAdmin(compute()); } }, 4000);
+          return;
+        }
+        armedRemove = null; gamePicked.delete(p.id);
+        try {
+          const r = await adminCall("admin_remove_player", {p_player:p.id});
+          toast(r === "deleted" ? `${p.name} removed` : `${p.name} removed. Past games and payments stay on record.`);
+        } catch(e){ renderAdmin(compute()); }
+      }
+    });
+    return el("div", {class:"chipwrap"}, chip, x);
+  }));
   const n = gamePicked.size, cost = parseFloat($("gCost").value) || 0;
   $("gCount").textContent = n ? `${n} picked · ${money(cost / n)} each` : "0 picked";
   $("saveGame").disabled = !n || !$("gDate").value;
