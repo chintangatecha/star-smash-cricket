@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <style>
-  /* Layout: one phone-width column. Pay card first, then balances, then games. Rohit mode adds an approvals + record-game block on top. */
+  /* Layout: one phone-width column. Players: who-are-you first, then their own balance, how to pay, their history. Rohit mode: approvals, record game, everyone's balances, games. */
   :root{
     --bg:#f2f5f0; --surface:#ffffff; --sunk:#e8eee6; --line:#d3ddd0; --fg:#13241a; --muted:#5d7062;
     --accent:#1f6b3a; --accent-fg:#ffffff; --owe:#b3261e; --owe-bg:#fbe9e7; --credit:#1f6b3a; --credit-bg:#e3f1e6;
@@ -69,9 +69,19 @@
   .payid{background:var(--sunk); border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px}
   .payid b{font-size:18px; font-variant-numeric:tabular-nums; user-select:all; -webkit-user-select:all}
 
-  .status{border-radius:10px; padding:12px; background:var(--sunk); display:flex; flex-direction:column; gap:2px}
-  .status .big{font-family:var(--display); font-weight:700; font-size:30px; line-height:1.05}
-  .status.owe .big{color:var(--owe)} .status.credit .big{color:var(--credit)}
+  .who h2{font-size:30px; line-height:1.05}
+  .who .chip{padding:14px 4px; font-size:16px}
+  .hello{display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .hello h2{font-size:26px}
+  .hero{border-radius:14px; padding:18px 16px; background:var(--sunk); display:flex; flex-direction:column; gap:4px}
+  .hero .big{font-family:var(--display); font-weight:700; font-size:48px; line-height:1; font-variant-numeric:tabular-nums}
+  .hero .label{color:inherit; opacity:.85}
+  .hero.owe{background:var(--owe-bg); color:var(--owe)}
+  .hero.credit{background:var(--credit-bg); color:var(--credit)}
+  .hero .meta{font-size:14px; color:var(--fg); opacity:.75}
+  .hero .waiting{font-size:14px; color:var(--wait); font-weight:600}
+  .step{display:flex; align-items:center; gap:10px; font-weight:600}
+  .step .n{flex:none; width:24px; height:24px; border-radius:50%; background:var(--fg); color:var(--bg); font-size:13px; display:grid; place-items:center; font-variant-numeric:tabular-nums}
 
   .amounts{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px}
   .amt{border:1px solid var(--line); background:var(--surface); color:var(--fg); border-radius:10px; padding:10px 4px; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:0}
@@ -168,28 +178,47 @@
     </details>
   </section>
 
-  <!-- PLAYER: PAY -->
-  <section class="card" id="payCard" hidden>
-    <h2>Pay Rohit</h2>
-    <div class="payid">
-      <div><div class="label">PayID</div><b id="payidText">+61 416 955 549</b></div>
-      <button class="btn" id="copyPayid" type="button">Copy</button>
+  <!-- PLAYER: WHO ARE YOU -->
+  <section class="card who" id="whoCard" hidden>
+    <div>
+      <h2>Who are you?</h2>
+      <p class="small muted" style="margin:4px 0 0">Tap your name. This phone will remember you.</p>
     </div>
-    <select id="me" aria-label="Your name"><option value="">Pick your name</option></select>
+    <div class="grid3" id="whoGrid"></div>
     <button class="btn ghost small" id="showAddMe" type="button" style="align-self:flex-start;padding-left:0">Not on the list? Add your name</button>
     <div class="row" id="addMeRow" hidden>
       <input id="newMe" class="grow" placeholder="Your first name" maxlength="30" autocomplete="given-name" aria-label="Your first name">
       <button class="btn primary" id="addMe" type="button">Add me</button>
     </div>
-    <div id="meStatus" hidden></div>
-    <div id="payForm" hidden style="display:flex;flex-direction:column;gap:10px">
-      <span class="label">After paying, tell Rohit how much</span>
+  </section>
+
+  <!-- PLAYER: MY ACCOUNT -->
+  <section id="meArea" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="hello">
+      <h2 id="hello"></h2>
+      <button class="btn ghost small" id="notMe" type="button"></button>
+    </div>
+    <div class="hero" id="hero"></div>
+
+    <section class="card" id="payCard">
+      <h2 id="payTitle">Pay Rohit</h2>
+      <div class="step"><span class="n">1</span>Send money to Rohit's PayID</div>
+      <div class="payid">
+        <b id="payidText">+61 416 955 549</b>
+        <button class="btn" id="copyPayid" type="button">Copy</button>
+      </div>
+      <div class="step"><span class="n">2</span>Tell Rohit how much you sent</div>
       <div class="amounts" id="amounts"></div>
       <input id="customAmt" type="number" min="1" step="0.01" inputmode="decimal" placeholder="Other amount" aria-label="Other amount">
       <input id="payNote" placeholder="Note for Rohit (optional)" maxlength="120" aria-label="Note for Rohit">
       <button class="btn primary big" id="submitPay" type="button" disabled>I've paid</button>
-      <p class="small muted" style="margin:0">Rohit checks his bank and approves it. Your balance updates then.</p>
-    </div>
+      <p class="small muted" style="margin:0">Rohit checks his bank, then approves it. Your balance updates when he does.</p>
+    </section>
+
+    <section class="card">
+      <h2>Your history</h2>
+      <div id="histList"></div>
+    </section>
   </section>
 
   <!-- BALANCES -->
@@ -204,7 +233,7 @@
     <div class="list" id="gameList"></div>
   </section>
 
-  <p class="small muted" style="text-align:center;margin:0">Minus means you owe. Plus means you have credit for future games.</p>
+  <p class="small muted" id="legend" hidden style="text-align:center;margin:0">Minus means they owe. Plus means credit for future games.</p>
 </main>
 <div class="toast" id="toast" hidden></div>
 
@@ -237,6 +266,7 @@ let S = { players: [], sessions: [], attendance: [], payments: [] };
 let adminKey = null;
 let openItems = new Set();
 let pickedAmount = null;
+let meId = +(store.get("ss-me") || 0) || null;
 let gamePicked = new Set();
 let editingSession = null;
 
@@ -331,47 +361,56 @@ async function load(){
 /* ---------- Render ---------- */
 function render(){
   const B = compute();
-  renderPay(B);
-  renderBalances(B);
-  renderGames();
-  if (adminKey) renderAdmin(B);
+  renderPlayer(B);
+  $("balCard").hidden = $("gamesCard").hidden = $("legend").hidden = !adminKey;
+  if (adminKey){ renderBalances(B); renderGames(); renderAdmin(B); }
 }
 
-function renderPay(B){
-  // Rohit collects the money, so his view has no "Pay Rohit" card
-  $("payCard").hidden = !!adminKey;
-  if (adminKey) return;
-  const sel = $("me");
-  const chosen = sel.value || store.get("ss-me") || "";
-  sel.replaceChildren(el("option", {value:"", text:"Pick your name"}),
-    ...S.players.filter(p => p.active && !p.is_organiser).map(p => el("option", {value: String(p.id), text: p.name})));
-  sel.value = B.has(+chosen) && B.get(+chosen).active ? chosen : "";
-  const me = sel.value ? B.get(+sel.value) : null;
+function renderPlayer(B){
+  // Rohit collects the money, so his view has no player section
+  if (adminKey){ $("whoCard").hidden = $("meArea").hidden = true; return; }
+  const me = meId && B.get(meId);
+  const valid = me && me.active && !me.is_organiser;
+  $("whoCard").hidden = !!valid;
+  $("meArea").hidden = !valid;
+  if (!valid){
+    $("whoGrid").replaceChildren(...S.players.filter(p => p.active && !p.is_organiser).map(p =>
+      el("button", {type:"button", class:"chip", text:p.name, onclick(){ chooseMe(p.id); }})));
+    return;
+  }
+  $("hello").textContent = "Hi " + me.name;
+  $("notMe").textContent = "Not " + me.name + "?";
 
-  const st = $("meStatus");
-  if (!me){ st.hidden = true; $("payForm").hidden = true; return; }
-  st.hidden = false; $("payForm").hidden = false;
-  const owe = me.balance < 0;
-  st.className = "status " + (owe ? "owe" : me.balance > 0 ? "credit" : "");
-  st.replaceChildren(
-    el("span", {class:"label", text: owe ? "You owe" : me.balance > 0 ? "Your credit" : "All square"}),
-    el("span", {class:"big num", text: money(Math.abs(me.balance))}),
-    el("span", {class:"small muted", text: `${me.games} game${me.games === 1 ? "" : "s"} · paid ${money(me.paid)} so far`}),
-    me.pending > 0 ? el("span", {class:"small", style:"color:var(--wait)", text: `${money(me.pending)} waiting for Rohit to approve`}) : null
-  );
+  const owe = me.balance < 0, credit = me.balance > 0;
+  const hero = $("hero");
+  hero.className = "hero " + (owe ? "owe" : credit ? "credit" : "");
+  hero.replaceChildren(...[
+    el("span", {class:"label", text: owe ? "You owe" : credit ? "Your credit" : "You're all square"}),
+    el("span", {class:"big", text: money(Math.abs(me.balance))}),
+    el("span", {class:"meta", text: me.games ? `${me.games} game${me.games === 1 ? "" : "s"} played · ${money(me.paid)} paid` : "No games yet"}),
+    me.pending > 0 ? el("span", {class:"waiting", text: `${money(me.pending)} waiting for Rohit to approve`}) : null
+  ].filter(Boolean));
 
   // Amount choices: what you owe (if any), then round advances
   const owed = r2(Math.max(0, -me.balance - me.pending));
+  $("payTitle").textContent = owed > 0 ? "Pay Rohit" : "Pay in advance";
   const choices = [];
   if (owed > 0) choices.push({ v: owed, label: money(owed), hint: "what you owe" });
-  for (const v of [50, 100, 150]) if (v !== owed) choices.push({ v, label: money(v), hint: owed > 0 && v > owed ? "covers it + credit" : "in advance" });
+  for (const v of [50, 100, 150]) if (v !== owed) choices.push({ v, label: money(v), hint: owed > 0 && v > owed ? "owed + credit" : "credit" });
   const shown = choices.slice(0, 3);
   if (pickedAmount == null && owed > 0) pickedAmount = owed;
   $("amounts").replaceChildren(...shown.map(c => el("button", {
-    type:"button", class:"amt" + (pickedAmount === c.v && !$("customAmt").value ? " on" : ""),
-    onclick(){ pickedAmount = c.v; $("customAmt").value = ""; renderPay(compute()); }
+    type:"button", class:"amt" + (pickedAmount === c.v && !$("customAmt").value ? " on" : ""), "aria-pressed": String(pickedAmount === c.v),
+    onclick(){ pickedAmount = c.v; $("customAmt").value = ""; renderPlayer(compute()); }
   }, el("span", {class:"num", text:c.label}), el("small", {text:c.hint}))));
   updateSubmit();
+
+  $("histList").replaceChildren(playerDetail(me));
+}
+function chooseMe(id){
+  meId = id; store.set("ss-me", id ? String(id) : null);
+  pickedAmount = null; $("customAmt").value = ""; $("payNote").value = "";
+  render(); window.scrollTo({top:0});
 }
 function currentAmount(){
   const c = parseFloat($("customAmt").value);
@@ -380,7 +419,7 @@ function currentAmount(){
 function updateSubmit(){
   const a = currentAmount();
   const b = $("submitPay");
-  b.disabled = !(a > 0) || !$("me").value;
+  b.disabled = !(a > 0) || !meId;
   b.textContent = a > 0 ? `I've paid ${money(a)}` : "I've paid";
 }
 
@@ -483,7 +522,7 @@ function confirmThen(btn, question, fn){
 }
 
 /* ---------- Player actions ---------- */
-$("me").addEventListener("change", () => { store.set("ss-me", $("me").value || null); pickedAmount = null; $("customAmt").value = ""; render(); });
+$("notMe").addEventListener("click", () => chooseMe(null));
 $("showAddMe").addEventListener("click", () => { $("addMeRow").hidden = false; $("showAddMe").hidden = true; $("newMe").focus(); });
 async function addMe(){
   const name = $("newMe").value.trim();
@@ -491,11 +530,10 @@ async function addMe(){
   const b = $("addMe"); b.disabled = true;
   try {
     const id = await rpc("add_player", { p_name: name });
-    store.set("ss-me", String(id));
-    $("me").value = String(id);
     $("newMe").value = ""; $("addMeRow").hidden = true; $("showAddMe").hidden = false;
-    toast("Added. You're on the list.");
     await load();
+    chooseMe(id);
+    toast("You're on the list");
   } catch(e){ toast(e.message); }
   b.disabled = false;
 }
@@ -504,7 +542,7 @@ $("newMe").addEventListener("keydown", e => { if (e.key === "Enter") addMe(); })
 $("customAmt").addEventListener("input", () => { document.querySelectorAll(".amt").forEach(b => b.classList.remove("on")); updateSubmit(); });
 $("copyPayid").addEventListener("click", () => copyText(PAYID, "PayID copied"));
 $("submitPay").addEventListener("click", async () => {
-  const amt = currentAmount(), pid = +$("me").value;
+  const amt = currentAmount(), pid = meId;
   if (!(amt > 0) || !pid) return;
   const b = $("submitPay"); b.disabled = true; b.textContent = "Sending…";
   try {
@@ -620,7 +658,7 @@ $("aAddPlayer").addEventListener("click", async () => {
 $("leaveAdmin").addEventListener("click", () => {
   store.set("ss-admin", null); adminKey = null;
   history.replaceState(null, "", location.pathname);
-  $("adminArea").hidden = true; render();
+  $("adminArea").hidden = true; render(); window.scrollTo({top:0});
 });
 
 /* ---------- Boot ---------- */
