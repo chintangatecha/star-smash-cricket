@@ -338,7 +338,9 @@ function render(){
 }
 
 function renderPay(B){
-  $("payCard").hidden = false;
+  // Rohit collects the money, so his view has no "Pay Rohit" card
+  $("payCard").hidden = !!adminKey;
+  if (adminKey) return;
   const sel = $("me");
   const chosen = sel.value || store.get("ss-me") || "";
   sel.replaceChildren(el("option", {value:"", text:"Pick your name"}),
